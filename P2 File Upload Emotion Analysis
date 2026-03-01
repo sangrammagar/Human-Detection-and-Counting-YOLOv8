@@ -1,0 +1,65 @@
+import cv2
+from deepface import DeepFace
+import os
+
+# --- SETTINGS ---
+FILE_PATH = "C:\\Users\\sangr\\Downloads\\videoplayback.mp4"  #  Enter here file path from our local 
+IS_VIDEO = FILE_PATH.lower().endswith(('.mp4', '.avi', '.mov'))
+
+def process_frame(frame):
+    try:
+        # Analyze for all emotions
+        results = DeepFace.analyze(frame, actions=['emotion'], enforce_detection=False)
+        
+        for face in results:
+            emotions = face['emotion']
+            region = face['region']
+            x, y, w, h = region['x'], region['y'], region['w'], region['h']
+
+            # --- PRECISION MAPPING ---
+            if emotions['sad'] > 85:
+                mood, color = "Crying", (255, 0, 0)      # Deep Blue
+            elif emotions['sad'] > 40:
+                mood, color = "Sad", (255, 150, 150)    # Light Blue
+            elif emotions['fear'] > 50:
+                mood, color = "Nervous", (0, 165, 255)  # Orange
+            elif emotions['happy'] > 90:
+                mood, color = "Smiling", (0, 255, 0)    # Bright Green
+            elif emotions['happy'] > 40:
+                mood, color = "Happy", (144, 238, 144)  # Light Green
+            elif emotions['angry'] > 50:
+                mood, color = "Angry", (0, 0, 255)      # Red
+            else:
+                mood, color = "Neutral", (0,0,0 # Black
+
+            # Draw Box and Label
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+            cv2.putText(frame, mood, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+            
+    except Exception:
+        pass
+    return frame
+
+# --- EXECUTION ---
+if not os.path.exists(FILE_PATH):
+    print(f"Error: File {FILE_PATH} not found!")
+else:
+    if IS_VIDEO:
+        cap = cv2.VideoCapture(FILE_PATH)
+        while cap.isOpened():
+            success, frame = cap.read()
+            if not success: break
+            
+            processed_frame = process_frame(frame)
+            cv2.imshow('Video Mood Detection', processed_frame)
+            
+            if cv2.waitKey(25) & 0xFF == ord('q'): break
+        cap.release()
+    else:
+        # Process as Image
+        image = cv2.imread(FILE_PATH)
+        processed_image = process_frame(image)
+        cv2.imshow('Image Mood Detection', processed_image)
+        cv2.waitKey(0) # Wait until a key is pressed
+
+cv2.destroyAllWindows()
