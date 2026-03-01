@@ -1,0 +1,68 @@
+import cv2
+from deepface import DeepFace
+
+# Initialize Webcam
+cap = cv2.VideoCapture(0)
+
+while cap.isOpened():
+    success, frame = cap.read()
+    if not success:
+        break
+
+    try:
+        # Analyze for all emotions
+        results = DeepFace.analyze(frame, actions=['emotion'], enforce_detection=False)
+        
+        # Get the full emotion dictionary (scores for all moods)
+        emotions = results[0]['emotion']
+        
+        # Get coordinates for the face box
+        region = results[0]['region']
+        x, y, w, h = region['x'], region['y'], region['w'], region['h']
+
+        # --- REFINED SEPARATION LOGIC ---
+        # 1. Check for Crying vs Sad
+        if emotions['sad'] > 85:
+            mood_label = "Crying"
+            color = (255, 0, 0)      # Deep Blue
+        elif emotions['sad'] > 40:
+            mood_label = "Sad"
+            color = (255, 100, 100)  # Light Blue
+
+        # 2. Check for Nervous vs Fear
+        elif emotions['fear'] > 50:
+            mood_label = "Nervous"
+            color = (0, 165, 255)    # Orange
+        
+        # 3. Check for Happy / Smiling
+        elif emotions['happy'] > 90:
+            mood_label = "Smiling"
+            color = (0, 255, 0)      # Bright Green
+        elif emotions['happy'] > 40:
+            mood_label = "Happy"
+            color = (144, 238, 144)  # Light Green
+
+        # 4. Others
+        elif emotions['angry'] > 50:
+            mood_label = "Angry"
+            color = (0, 0, 255)      # Red
+        else:
+            mood_label = "Neutral"
+            color = (0,0,0)  # Black
+
+        # --- DRAWING ---
+        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+        cv2.putText(frame, f"{mood_label}", (x, y - 10), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, color, 3)
+
+    except Exception as e:
+        # If no face is detected, we just skip to the next frame
+        pass
+
+    cv2.imshow('Precision Mood Detector', frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
